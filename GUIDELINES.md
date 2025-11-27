@@ -47,3 +47,74 @@ K-finder-claude/
 ├── storage.js             # 데이터 저장/불러오기/관리 (Shopee 필드 적용)
 ├── gemini.js              # 2단계: AI 통신 및 프롬프트 엔지니어링 모듈
 └── icons/                 # 아이콘 리소스
+
+## 4. Git 버전 관리
+
+### 저장소 정보
+- **GitHub**: https://github.com/cham7766-dotcom/K-finder-claude
+- **Branch**: main
+- **작성자**: chosun (cham7746@gmail.com)
+
+### 기본 워크플로우
+
+```bash
+# 작업 디렉토리로 이동
+cd "c:\Users\chosun\Desktop\단계별\단계별_claude\1_상품추출\K-finder-claude"
+
+# 1. 현재 상태 확인
+git status
+
+# 2. 변경된 파일 스테이징
+git add .                    # 모든 변경사항
+git add gemini.js           # 특정 파일만
+
+# 3. 커밋 (변경 내용 설명)
+git commit -m "Fix: Gemini API fallback 처리 개선"
+
+# 4. GitHub에 푸시
+git push
+
+# 5. 최신 코드 가져오기 (다른 곳에서 작업했을 때)
+git pull
+```
+
+### 커밋 메시지 규칙
+
+- **Feat**: 새로운 기능 추가
+- **Fix**: 버그 수정
+- **Refactor**: 코드 리팩토링
+- **Docs**: 문서 수정
+- **Style**: 코드 포맷팅
+- **Test**: 테스트 추가/수정
+
+예시:
+```
+Feat: Gemini API 무게 보정 기능 추가
+Fix: extractGeminiText 에러 처리 개선
+Docs: GUIDELINES.md에 Git 사용법 추가
+```
+
+### 주요 명령어
+
+```bash
+# 커밋 히스토리 확인
+git log --oneline
+
+# 특정 파일 변경 내역
+git log -p gemini.js
+
+# 마지막 커밋 취소 (커밋만 취소, 파일은 유지)
+git reset --soft HEAD~1
+
+# 특정 파일만 이전 버전으로 되돌리기
+git checkout HEAD -- gemini.js
+```
+
+### .gitignore 설정
+
+API 키와 민감한 정보는 절대 커밋하지 않도록 `.gitignore`에 등록:
+```
+*.key
+.env
+config.js
+```
