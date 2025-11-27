@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>K-finder-claude 상품 추출</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100%;
+            height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            overflow: hidden;
+            overflow-x: hidden; /* 가로 스크롤 강제 제거 */
+        }
+
+        /* 탭 네비게이션 */
+        .tab-nav {
+            display: flex;
+            background: white;
+            border-bottom: 2px solid #dee2e6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .tab-btn.active {
+            color: #007bff;
+            background: #e7f3ff;
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #007bff;
+        }
+
+        /* 탭 컨텐츠 */
+        .tab-content {
+            display: none;
+            height: calc(100vh - 50px);
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 컨테이너 */
+        .register-container, .list-container {
+            padding: 15px;
+        }
+
+        h1 {
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 15px;
+            color: #333;
+            font-weight: 600;
+            padding: 8px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        /* 설정 컨테이너 */
+        .settings-container {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        .settings-header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 10px 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .settings-header:hover {
+            background: linear-gradient(135deg, #0056b3, #004085);
+        }
+
+        .settings-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .settings-toggle {
+            font-size: 14px;
+            transition: transform 0.3s ease;
+        }
+
+        .settings-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .settings-content {
+            padding: 12px;
+            display: block;
+            transition: all 0.3s ease;
+            max-height: 2000px;
+            overflow: hidden;
+        }
+
+        .settings-content.collapsed {
+            max-height: 0;
+            padding: 0 12px;
+        }
+
+        /* 상품 설정 */
+        .setting-section {
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .setting-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .product-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 8px;
+            height: 120px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .product-item.full-width {
+            grid-column: 1 / -1;
+            height: auto;
+        }
+
+        .product-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .margin-input-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .margin-input {
+            width: 60px;
+            padding: 4px 6px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .margin-percent {
+            font-size: 11px;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+        }
+
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            padding: 1px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+
+        .radio-item:hover {
+            background: rgba(0,123,255,0.1);
+        }
+
+        .radio-item input[type="radio"] {
+            margin: 0;
+            transform: scale(0.8);
+        }
+
+        .radio-item label {
+            font-size: 10px;
+            color: #495057;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .conditional-option {
+            flex-direction: row;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .conditional-input-group {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .conditional-input {
+            width: 80px;
+            padding: 2px 3px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+            font-size: 9px;
+            text-align: right;
+        }
+
+        .conditional-input:disabled {
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+
+        .input-suffix {
+            font-size: 9px;
+            color: #6c757d;
+        }
+
+        /* 프로세스 플로우 */
+        .process-flow {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .flow-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .flow-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .flow-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            padding: 10px 6px;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .flow-btn:hover {
+            border-color: #007bff;
+            background: #f8f9fa;
+        }
+
+        .flow-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .flow-btn .number {
+            background: #007bff;
+            color: white;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: bold;
+        }
+
+        .flow-btn .icon {
+            font-size: 14px;
+        }
+
+        .flow-btn span:last-child {
+            font-size: 14px;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        /* 상태 및 진행률 */
+        .status {
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
+            font-size: 11px;
+            margin-bottom: 10px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+        }
+
+        .status.processing {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+
+        .status.success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        .progress-container {
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        /* 이미지 컨테이너 */
+        #imageContainer {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 10px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            min-height: 120px;
+        }
+
+        #imageContainer:empty::before {
+            content: "이미지가 추출되면 여기에 표시됩니다";
+            grid-column: 1 / -1;
+            text-align: center;
+            color: #6c757d;
+            font-size: 12px;
+            padding: 40px 20px;
+        }
+
+        .thumbnail-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            transition: all 0.2s ease;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #dee2e6;
+        }
+
+        .thumbnail-wrapper:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .thumbnail-wrapper[draggable="true"]:hover {
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+            cursor: move;
+        }
+
+        .thumbnail-wrapper.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .thumbnail-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .thumbnail-index {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: bold;
+            z-index: 10;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        .thumbnail-delete, .delete-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(220,53,69,0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 15;
+            opacity: 1;
+            transition: all 0.2s ease;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .thumbnail-delete:hover, .delete-btn:hover {
+            background: rgba(220,53,69,1);
+            transform: scale(1.2);
+        }
+
+        /* 데이터 섹션 */
+        .data-section {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: block;
+        }
+
+        .data-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 12px;
+            color: #495057;
+            font-weight: 600;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 90px 1fr;
+            gap: 6px 8px;
+        }
+
+        .field-label {
+            font-weight: 600;
+            text-align: right;
+            font-size: 11px;
+            padding-top: 2px;
+            color: #6c757d;
+        }
+
+        .field-value {
+            padding: 2px 6px;
+            font-size: 11px;
+            min-height: 18px;
+            border-radius: 3px;
+            background: #f8f9fa;
+            color: #212529;
+            word-break: break-all;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .field-value:not(:empty) {
+            background: #e7f3ff;
+            border-left: 2px solid #007bff;
+        }
+
+        .field-input {
+            padding: 4px 6px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 11px;
+            width: 100%;
+            background: white;
+            box-sizing: border-box;
+        }
+
+        .field-input:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 3px rgba(0,123,255,0.25);
+        }
+
+        /* 옵션 섹션 */
+        .data-section#optionSection {
+            background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+            border: 2px solid #2196f3;
+            margin-bottom: 20px;
+        }
+
+        .option-dropdown-container {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .option-dropdown-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .option-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        /* 옵션 액션 버튼 */
+        .option-action-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .option-action-btn {
+            padding: 6px 10px;
+            font-size: 11px;
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .option-action-btn:hover {
+            background: #e7f3ff;
+            border-color: #007bff;
+            color: #007bff;
+        }
+
+        .option-action-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 규격 초과 컨테이너 */
+        .spec-overflow-container {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .spec-overflow-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #e65100;
+        }
+
+        .spec-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ff9800;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+
+        /* 그룹형 옵션 드롭다운 */
+        .option-dropdown-container.grouped {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        /* 현재 옵션 정보 */
+        .current-option-info {
+            background: #e8f5e9;
+            border: 1px solid #4caf50;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .current-option-info strong {
+            color: #2e7d32;
+        }
+
+        /* 디버그 정보 */
+        .debug-info {
+            background: #1e1e1e;
+            color: #ffffff;
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 15px;
+            max-height: 120px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            line-height: 1.3;
+            display: none;
+        }
+
+        .debug-info.show {
+            display: block;
+        }
+
+        /* 저장 목록 탭 스타일 */
+        .list-header {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .search-btn {
+            padding: 8px 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-btn:hover {
+            background: #0056b3;
+        }
+
+        .list-stats {
+            font-size: 10px;
+            color: #6c757d;
+            margin-top: 10px;
+        }
+
+        .product-grid-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+        }
+
+        .product-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .product-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .product-thumbnail {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .product-card-name {
+            font-size: 11px;
+            margin: 0 0 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #333;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            white-space: normal;
+            line-height: 1.3;
+            max-height: 2.6em;
+        }
+
+        .product-card-price {
+            font-size: 13px;
+            font-weight: bold;
+            color: #e74c3c;
+            margin: 5px 0;
+        }
+
+        .product-card-meta {
+            font-size: 10px;
+            color: #6c757d;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+        }
+
+        .product-card-actions {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .card-action-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 2px 6px;
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        /* 빈 상태 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #6c757d;
+            grid-column: 1 / -1;
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        /* 이미지 그리드 (썸네일화) */
+        .image-section {
+            margin-bottom: 15px;
+        }
+
+        .image-section-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .image-item {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%; /* 1:1 비율 정사각형 */
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .image-item:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .image-item img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-info {
+            font-size: 11px;
+            color: #6c757d;
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        /* 옵션 배지 스타일 */
+        .option-group {
+            margin-bottom: 12px;
+        }
+
+        .option-group-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #ee4d2d;
+            margin-bottom: 6px;
+            padding-left: 4px;
+        }
+
+        .option-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .option-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #f1f3f5;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            font-size: 11px;
+            color: #495057;
+            transition: all 0.2s;
+        }
+
+        .option-badge:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        .option-badge.soldout {
+            text-decoration: line-through;
+            color: #adb5bd;
+            background: #f8f9fa;
+            border-color: #e9ecef;
+        }
+
+        .option-raw-data {
+            width: 100%;
+            max-width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            background: #f8f9fa;
+            resize: vertical;
+            overflow-x: hidden;
+            word-break: break-all;
+        }
+
+        /* 반응형 */
+        @media (max-width: 400px) {
+            .product-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .flow-buttons {
+                flex-direction: column;
+            }
+
+            .search-bar {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .product-grid-list {
+                grid-template-columns: 1fr;
+            }
+
+            .image-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 탭 네비게이션 -->
+    <div class="tab-nav">
+        <button class="tab-btn active" data-tab="register">📦 상품 추출</button>
+        <button class="tab-btn" data-tab="list">📋 저장 목록</button>
+    </div>
+
+    <!-- 상품 추출 탭 -->
+    <div class="tab-content active" id="register-tab">
+        <div class="register-container">
+            <h1>🛒 K-finder-claude 상품 정보 추출</h1>
+
+            <!-- 설정 컨테이너 -->
+            <div class="settings-container">
+                <div class="settings-header" id="settingsHeader">
+                    <div class="settings-title">
+                        <span>⚙️</span>
+                        <span>옵션 설정</span>
+                        <small style="opacity:.8;font-size:10px;">(클릭하여 펼치기/접기)</small>
+                    </div>
+                    <div class="settings-toggle" id="settingsToggle">▼</div>
+                </div>
+                <div class="settings-content" id="settingsContent">
+                    <!-- 상품 설정 섹션 -->
+                    <div class="setting-section">
+                        <div class="section-title">
+                            <span>💰</span>
+                            <span>상품 설정</span>
+                        </div>
+                        <div class="product-grid">
+                            <!-- 마진율 -->
+                            <div class="product-item">
+                                <div class="product-label">
+                                    <span>📊</span>
+                                    <span>마진율</span>
+                                </div>
+                                <div class="margin-input-group">
+                                    <input type="number" class="margin-input" id="marginRate" value="30" min="0" max="1000" step="1">
+                                    <span class="margin-percent">%</span>
+                                </div>
+                            </div>
+
+                            <!-- 배송비 옵션 -->
+                            <div class="product-item" style="position: relative;">
+                                <div class="product-label">
+                                    <span>🚚</span>
+                                    <span>배송비 옵션</span>
+                                </div>
+                                <div class="radio-group">
+                                    <div class="radio-item">
+                                        <input type="radio" id="deliveryFree" name="deliveryOption" value="1">
+                                        <label for="deliveryFree">무료배송</label>
+                                    </div>
+                                    <div class="radio-item">
+                                        <input type="radio" id="deliveryPaid" name="deliveryOption" value="2" checked>
+                                        <label for="deliveryPaid">유료배송</label>
+                                    </div>
+                                    <div class="radio-item conditional-option">
+                                        <input type="radio" id="deliveryConditional" name="deliveryOption" value="3">
+                                        <label for="deliveryConditional">조건부무료</label>
+                                        <div class="conditional-input-group">
+                                            <input type="number" id="conditionalThreshold" class="conditional-input"
+                                                   placeholder="금액" min="0" step="1000" disabled>
+                                            <span class="input-suffix">원↑</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gemini API 키 설정 섹션 -->
+                    <div class="setting-section">
+                        <div class="section-title">
+                            <span>🤖</span>
+                            <span>AI 분석 설정</span>
+                        </div>
+                        <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 10px;">
+                            <div style="margin-bottom: 8px;">
+                                <label for="geminiApiKeyInput" style="display: block; font-size: 11px; font-weight: 600; color: #495057; margin-bottom: 5px;">
+                                    Gemini API Key
+                                </label>
+                                <input type="password"
+                                       id="geminiApiKeyInput"
+                                       class="field-input"
+                                       placeholder="AIzaSy..."
+                                       style="width: 100%; margin-bottom: 6px;">
+                            </div>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <button id="saveGeminiKeyBtn"
+                                        style="flex: 1; padding: 6px 10px; font-size: 11px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+                                    저장 & 테스트
+                                </button>
+                                <div id="geminiKeyStatus"
+                                     style="flex: 1; font-size: 10px; color: #6c757d; text-align: center;">
+                                    미설정
+                                </div>
+                            </div>
+                            <div style="margin-top: 8px; font-size: 9px; color: #6c757d; line-height: 1.4;">
+                                💡 <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #667eea;">Google AI Studio</a>에서 무료 API 키를 발급받을 수 있습니다.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 프로세스 플로우 -->
+            <div class="process-flow">
+                <span class="flow-title">🔄 상품 정보 추출 프로세스</span>
+                <div class="flow-buttons">
+                    <button class="flow-btn" id="extractBtn">
+                        <span class="number">1</span>
+                        <span class="icon">📋</span>
+                        <span>페이지 스캔</span>
+                    </button>
+                    <button class="flow-btn" id="aiAnalyzeBtn" disabled style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                        <span class="number">2</span>
+                        <span class="icon">✨</span>
+                        <span>AI 분석</span>
+                    </button>
+                    <button class="flow-btn" id="saveProductBtn" disabled>
+                        <span class="number">3</span>
+                        <span class="icon">💾</span>
+                        <span>상품 저장</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 상태 표시 -->
+            <div id="status" class="status">
+                상품 정보를 추출할 준비가 되었습니다
+            </div>
+
+            <!-- 진행률 바 -->
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <!-- 이미지 컨테이너 -->
+            <div id="imageContainer"></div>
+
+            <!-- AI 분석 결과 -->
+            <div id="aiResultSection" class="data-section" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                <h3 style="color: white; border-bottom: 1px solid rgba(255,255,255,0.3);">✨ AI 분석 결과 (Shopee 최적화)</h3>
+                <div id="aiResultContainer" style="background: rgba(255,255,255,0.95); color: #333; border-radius: 8px; padding: 15px; margin-top: 10px;">
+                    <!-- AI 분석 결과가 여기에 표시됩니다 -->
+                </div>
+            </div>
+
+            <!-- 디버그 정보 -->
+            <div id="debugInfo" class="debug-info"></div>
+
+            <!-- 디버그 토글 버튼 -->
+            <button id="debugToggleBtn"
+                    style="font-size: 10px; padding: 4px 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">
+                🐛 디버그 보기/숨기기
+            </button>
+
+            <!-- 데이터 표시 섹션들 -->
+            <div class="data-section" id="basicInfoSection">
+                <h3>📦 기본 정보</h3>
+                <div class="grid">
+                    <span class="field-label">소싱날짜</span><input type="text" id="소싱날짜" class="field-input" />
+                    <span class="field-label">소싱처</span><input type="text" id="소싱처" class="field-input" />
+                    <span class="field-label">상품코드</span><input type="text" id="상품코드" class="field-input" />
+                    <span class="field-label">상품URL</span><input type="url" id="상품URL" class="field-input" />
+                </div>
+            </div>
+
+            <div class="data-section" id="categorySection">
+                <h3>📂 카테고리</h3>
+                <div class="grid">
+                    <span class="field-label">1차</span><input type="text" id="1차카테고리" class="field-input" />
+                    <span class="field-label">2차</span><input type="text" id="2차카테고리" class="field-input" />
+                    <span class="field-label">3차</span><input type="text" id="3차카테고리" class="field-input" />
+                </div>
+            </div>
+
+            <div class="data-section" id="optionSection" style="display: none;">
+                <h3>상품 옵션 처리</h3>
+
+                <!-- 옵션 배지 컨테이너 (Raw 데이터 표시) -->
+                <div id="optionContainer" style="margin-bottom: 15px;">
+                    <!-- 옵션 배지가 여기에 동적으로 생성됩니다 -->
+                </div>
+
+                <!-- 옵션 선택 드롭다운 (동적으로 생성됨) -->
+                <div class="option-dropdown-container" id="optionDropdownContainer">
+                    <!-- 그룹형/평면형 옵션 드롭다운이 여기에 동적으로 생성됩니다 -->
+                </div>
+
+                <!-- 규격이 50자 초과일 때 드롭다운으로 표시 -->
+                <div class="spec-overflow-container" id="specOverflowContainer" style="display: none;">
+                    <label for="specSelect">규격 선택 (50자 초과):</label>
+                    <select id="specSelect" class="spec-select">
+                        <option value="">규격을 선택하세요</option>
+                    </select>
+                </div>
+
+                <!-- 현재 선택된 옵션 정보 -->
+                <div class="current-option-info" id="currentOptionInfo" style="display: none;">
+                    <strong>선택된 옵션:</strong> <span id="selectedOptionText"></span>
+                </div>
+            </div>
+
+            <div class="data-section" id="productInfoSection">
+                <h3>🏷️ 상품 정보</h3>
+                <div class="grid">
+                    <span class="field-label">물품명</span><input type="text" id="물품명" class="field-input" />
+                    <span class="field-label">브랜드</span><input type="text" id="브랜드" class="field-input" placeholder="Brand Name" />
+                    <span class="field-label">무게(kg)</span><input type="text" id="무게" class="field-input" placeholder="0.500" />
+                    <span class="field-label">규격</span><input type="text" id="규격" class="field-input" />
+                    <span class="field-label">모델명</span><input type="text" id="모델명" class="field-input" />
+                    <span class="field-label">소재재질</span><input type="text" id="소재재질" class="field-input" />
+                    <span class="field-label">판매단위</span><input type="text" id="판매단위" class="field-input" />
+                    <span class="field-label">제조사</span><input type="text" id="제조사" class="field-input" />
+                    <span class="field-label">원산지</span><input type="text" id="원산지" class="field-input" />
+                    <span class="field-label">원산지세부</span><input type="text" id="원산지세부" class="field-input" />
+                </div>
+            </div>
+
+            <div class="data-section" id="priceInfoSection">
+                <h3>💰 가격/배송비</h3>
+                <div class="grid">
+                    <span class="field-label">구입가</span><input type="text" id="구입가" class="field-input" />
+                    <span class="field-label">판매가</span><input type="text" id="판매가" class="field-input" />
+                    <span class="field-label">재고수량</span><input type="text" id="재고수량" class="field-input" />
+                    <span class="field-label">배송비</span><input type="text" id="배송비" class="field-input" />
+                    <span class="field-label">추가배송비</span><input type="text" id="추가배송비" class="field-input" />
+                    <span class="field-label">반품배송비</span><input type="text" id="반품배송비" class="field-input" />
+                </div>
+            </div>
+
+            <div class="data-section" id="certInfoSection">
+                <h3>🔒 인증 정보</h3>
+                <div class="grid">
+                    <span class="field-label">어린이제품</span><input type="text" id="어린이제품인증정보" class="field-input" />
+                    <span class="field-label">전기용품</span><input type="text" id="전기용품인증정보" class="field-input" />
+                    <span class="field-label">생활용품</span><input type="text" id="생활용품인증정보" class="field-input" />
+                    <span class="field-label">방송통신</span><input type="text" id="방송통신기자재인증정보" class="field-input" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 저장 목록 탭 -->
+    <div class="tab-content" id="list-tab">
+        <div class="list-container">
+            <div class="list-header">
+                <h2 style="margin-bottom: 10px; font-size: 16px;">📂 저장된 상품 목록</h2>
+                <div class="search-bar">
+                    <input type="text" class="search-input" id="searchInput" placeholder="상품명으로 검색...">
+                    <button class="search-btn" id="searchBtn">검색</button>
+                    <button class="search-btn" id="clearAllBtn" style="background:#dc3545;">전체 삭제</button>
+                </div>
+                <div class="list-stats">
+                    <span>총 <strong id="totalCount">0</strong>개 상품</span>
+                    <span>오늘 저장: <strong id="todayCount">0</strong>개</span>
+                </div>
+            </div>
+
+            <div class="product-grid-list" id="productGrid">
+                <div class="empty-state">
+                    <div class="icon">📦</div>
+                    <p>아직 저장된 상품이 없습니다</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 파일들 -->
+    <script src="storage.js"></script>
+    <script src="gemini.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>

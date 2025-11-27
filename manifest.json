@@ -1,0 +1,60 @@
+{
+	"manifest_version": 3,
+	"name": "K-finder-claude [Shopee Sourcing Tool]",
+	"version": "1.2",
+	"description": "Shopee 글로벌 셀링을 위한 쿠팡/네이버 상품 정보 추출 + AI 분석 도구",
+	"icons": {
+		"16": "icons/icon16.png",
+		"48": "icons/icon48.png",
+		"128": "icons/icon128.png"
+	},
+	"permissions": [
+		"scripting",
+		"activeTab",
+		"downloads",
+		"storage",
+		"sidePanel",
+		"tabs",
+		"unlimitedStorage"
+	],
+	"host_permissions": [
+		"*://*.coupang.com/*",
+		"*://*.coupangcdn.com/*",
+		"*://*.smartstore.naver.com/*",
+		"*://*.brand.naver.com/*",
+		"*://*.shop-phinf.pstatic.net/*",
+		"https://generativelanguage.googleapis.com/*"
+	],
+	"background": {
+		"service_worker": "background.js"
+	},
+	"side_panel": {
+		"default_path": "sidepanel.html"
+	},
+	"action": {
+		"default_title": "K-Finder 열기",
+		"default_icon": {
+			"16": "icons/icon16.png",
+			"48": "icons/icon48.png",
+			"128": "icons/icon128.png"
+		}
+	},
+	"content_security_policy": {
+		"extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com https://*.coupang.com https://*.coupangcdn.com https://*.smartstore.naver.com https://*.brand.naver.com https://*.shop-phinf.pstatic.net;"
+	},
+	"web_accessible_resources": [
+		{
+			"resources": [
+				"sidepanel.html",
+				"popup.js",
+				"gemini.js",
+				"storage.js"
+			],
+			"matches": [
+				"*://*.coupang.com/*",
+				"*://*.smartstore.naver.com/*",
+				"*://*.brand.naver.com/*"
+			]
+		}
+	]
+}
