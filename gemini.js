@@ -124,9 +124,8 @@ async function analyzeProductForShopee(productData) {
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 2048,
+          responseMimeType: "application/json",
         },
-        // Gemini Developer API JSON 모드 활성화
-        response_mime_type: "application/json",
       }),
     });
 
@@ -424,9 +423,8 @@ async function testGeminiApiKey(apiKey) {
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 100,
+          responseMimeType: "application/json",
         },
-        // Gemini Developer API JSON 모드 활성화
-        response_mime_type: "application/json",
       }),
     });
 
