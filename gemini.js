@@ -111,6 +111,7 @@ async function analyzeProductForShopee(productData) {
       body: JSON.stringify({
         contents: [
           {
+            role: "user",
             parts: [
               {
                 text: prompt,
@@ -123,7 +124,9 @@ async function analyzeProductForShopee(productData) {
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 2048,
-        }
+        },
+        // Gemini Developer API JSON 모드 활성화
+        response_mime_type: "application/json",
       }),
     });
 
@@ -322,8 +325,27 @@ function parseGeminiResponse(responseText) {
       cleanedText = cleanedText.replace(/^```\s*/, "").replace(/\s*```$/, "");
     }
 
-    const parsed = JSON.parse(cleanedText);
+    const rawParsed = JSON.parse(cleanedText);
 
+    // 기본 구조와 응답 JSON을 merge 해서 최대한 살려 쓰기
+    const parsed = {
+      ...defaultStructure,
+      ...rawParsed,
+      weight: {
+        ...defaultStructure.weight,
+        ...(rawParsed.weight || {}),
+      },
+      optionStructure: {
+        ...defaultStructure.optionStructure,
+        ...(rawParsed.optionStructure || {}),
+      },
+      riskFlags: {
+        ...defaultStructure.riskFlags,
+        ...(rawParsed.riskFlags || {}),
+      },
+    };
+
+    // 필수 필드가 없으면 에러 대신 경고만 찍기
     const requiredFields = [
       "productNameEN",
       "descriptionEN",
@@ -332,20 +354,9 @@ function parseGeminiResponse(responseText) {
     ];
     for (const field of requiredFields) {
       if (!parsed[field]) {
-        throw new Error("필수 필드 누락: " + field);
+        console.warn("[Gemini] 응답 JSON에 필수 필드가 없습니다:", field);
       }
     }
-
-    parsed.weight = parsed.weight || defaultStructure.weight;
-    parsed.optionStructure =
-      parsed.optionStructure || defaultStructure.optionStructure;
-    parsed.riskFlags = parsed.riskFlags || defaultStructure.riskFlags;
-
-    parsed.sellingPoints = parsed.sellingPoints || [];
-    parsed.hashtags = parsed.hashtags || [];
-    parsed.pricingStrategy =
-      parsed.pricingStrategy || defaultStructure.pricingStrategy;
-    parsed.marketingTips = parsed.marketingTips || "";
 
     return parsed;
   } catch (error) {
@@ -402,6 +413,7 @@ async function testGeminiApiKey(apiKey) {
       body: JSON.stringify({
         contents: [
           {
+            role: "user",
             parts: [
               {
                 text: "Hello, this is a test.",
@@ -409,6 +421,12 @@ async function testGeminiApiKey(apiKey) {
             ],
           },
         ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 100,
+        },
+        // Gemini Developer API JSON 모드 활성화
+        response_mime_type: "application/json",
       }),
     });
 
