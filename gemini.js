@@ -164,15 +164,14 @@ async function analyzeProductForShopee(productData) {
     const generatedText = extractGeminiText(result);
 
     console.log("🔍 [Gemini] 추출된 텍스트 길이:", generatedText.length);
-    console.log(
-      "🔍 [Gemini] 추출된 텍스트 (첫 200자):",
-      generatedText.substring(0, 200)
-    );
-
-    console.log("✅ [Gemini] 분석 완료");
+    console.log("🔍 [Gemini] 추출된 텍스트 전체:\n", generatedText);
 
     // JSON 파싱 (Gemini가 JSON 형태로 응답)
     const parsedResult = parseGeminiResponse(generatedText);
+
+    console.log("🔍 [Gemini] 파싱 결과:", JSON.stringify(parsedResult, null, 2));
+    console.log("✅ [Gemini] 분석 완료");
+
     return {
       success: true,
       data: parsedResult,
@@ -315,53 +314,70 @@ function parseGeminiResponse(responseText) {
 
   try {
     let cleanedText = responseText.trim();
+
+    // 코드블럭(```json`) 제거
     if (cleanedText.startsWith("```json")) {
       cleanedText = cleanedText
-        .replace(/^```json\s*/, "")
-        .replace(/\s*```$/, "");
+        .replace(/^```json\s*/i, "")
+        .replace(/\s*```$/i, "");
     } else if (cleanedText.startsWith("```")) {
-      cleanedText = cleanedText.replace(/^```\s*/, "").replace(/\s*```$/, "");
+      cleanedText = cleanedText.replace(/^```\s*/i, "").replace(/\s*```$/i, "");
+    }
+
+    // 앞뒤에 설명 텍스트가 붙어 있으면 JSON 부분만 잘라내기
+    const firstBrace = cleanedText.indexOf("{");
+    const lastBrace = cleanedText.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      cleanedText = cleanedText.slice(firstBrace, lastBrace + 1);
     }
 
     const rawParsed = JSON.parse(cleanedText);
 
-    // 기본 구조와 응답 JSON을 merge 해서 최대한 살려 쓰기
-    const parsed = {
+    // 혹시 상위에 analysis/result 같은 래퍼 객체가 있으면 벗겨내기
+    const core =
+      rawParsed.analysis ||
+      rawParsed.result ||
+      rawParsed.data ||
+      rawParsed;
+
+    const merged = {
       ...defaultStructure,
-      ...rawParsed,
+      ...core,
       weight: {
         ...defaultStructure.weight,
-        ...(rawParsed.weight || {}),
+        ...(core.weight || {}),
       },
       optionStructure: {
         ...defaultStructure.optionStructure,
-        ...(rawParsed.optionStructure || {}),
+        ...(core.optionStructure || {}),
       },
       riskFlags: {
         ...defaultStructure.riskFlags,
-        ...(rawParsed.riskFlags || {}),
+        ...(core.riskFlags || {}),
       },
     };
 
-    // 필수 필드가 없으면 에러 대신 경고만 찍기
-    const requiredFields = [
-      "productNameEN",
-      "descriptionEN",
-      "categories",
-      "keywords",
-    ];
+    // otherRisks는 문자열/배열 둘 다 허용 → 항상 배열로 정규화
+    if (merged.riskFlags && !Array.isArray(merged.riskFlags.otherRisks)) {
+      const v = merged.riskFlags.otherRisks;
+      merged.riskFlags.otherRisks = v
+        ? (Array.isArray(v) ? v : [String(v)])
+        : [];
+    }
+
+    const requiredFields = ["productNameEN", "descriptionEN", "categories", "keywords"];
     for (const field of requiredFields) {
-      if (!parsed[field]) {
+      if (!merged[field]) {
         console.warn("[Gemini] 응답 JSON에 필수 필드가 없습니다:", field);
       }
     }
 
-    return parsed;
+    return merged;
   } catch (error) {
     console.error("❌ [Gemini] 응답 파싱 실패:", error);
     console.log("원본 응답:", responseText);
 
-    // fallback: JSON 파싱이 안 되면 descriptionEN에 원문 일부만 넣어서라도 UI를 깨지 않게 함
+    // fallback: JSON 파싱 실패 시, descriptionEN에 원문 일부를 넣어서 UI 살리기
     return {
       ...defaultStructure,
       descriptionEN: responseText.substring(0, 300),
