@@ -494,4 +494,15 @@ async function testGeminiApiKey(apiKey) {
   }
 }
 
-console.log("🤖 Gemini API 모듈 로드 완료");
+// ================================
+// 전역(window) 노출 설정
+// ================================
+
+// sidepanel.html에서 <script> 태그로 gemini.js를 로드하므로,
+// 필요한 주요 함수들을 window에 연결해서 어디서든 접근 가능하게 만든다.
+window.analyzeProductForShopee = analyzeProductForShopee;
+window.testGeminiApiKey = typeof testGeminiApiKey === "function" ? testGeminiApiKey : window.testGeminiApiKey;
+window.getGeminiApiKey = typeof getGeminiApiKey === "function" ? getGeminiApiKey : window.getGeminiApiKey;
+window.saveGeminiApiKey = typeof saveGeminiApiKey === "function" ? saveGeminiApiKey : window.saveGeminiApiKey;
+
+console.log("🤖 Gemini API 모듈 로드 완료 (전역 바인딩 설정 완료)");
