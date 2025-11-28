@@ -124,7 +124,6 @@ async function analyzeProductForShopee(productData) {
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 2048,
-          responseMimeType: "application/json",
         },
       }),
     });
@@ -423,7 +422,6 @@ async function testGeminiApiKey(apiKey) {
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 100,
-          responseMimeType: "application/json",
         },
       }),
     });
